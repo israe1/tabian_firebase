@@ -62,7 +62,6 @@ public class LoginActivity extends AppCompatActivity {
                                     Log.e(TAG, "onComplete : "+task.isSuccessful());
                                     hideDialog();
                                     if (task.isSuccessful()){
-
                                     }else {
 
                                     }
@@ -150,6 +149,9 @@ public class LoginActivity extends AppCompatActivity {
                     if (user.isEmailVerified()){
                         Log.e(TAG, "onAuthStateChanged : signed_in :" + user.getUid());
                         Toast.makeText(LoginActivity.this, "Authenticated with: "+user.getEmail(), Toast.LENGTH_SHORT).show();
+
+                        startActivity(new Intent(LoginActivity.this, SignedInActivity.class));
+                        finish();
                     }else {
                         FirebaseAuth.getInstance().signOut();
                     }

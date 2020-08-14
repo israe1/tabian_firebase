@@ -3,13 +3,14 @@ package com.israel.tabian;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -35,10 +36,44 @@ public class SignedInActivity extends AppCompatActivity {
         Log.d(TAG, "onCreate: started.");
 
         setupFirebaseAuth();
-
+        getUserDetails();
+//        setUserDetails();
     }
 
+    private void getUserDetails(){
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user != null){
+            String uid = user.getUid();
+            String name = user.getEmail();
+            String email = user.getEmail();
+            Uri photoUrl = user.getPhotoUrl();
 
+            String prop = "uid = "+ uid + "\n" +
+                    "name = "+ name + "\n" +
+                    "email = "+ email + "\n" +
+                    "photoUrl = "+ photoUrl + "\n" ;
+
+            Log.e(TAG, prop);
+        }
+    }
+
+    private void setUserDetails(){
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user != null){
+            UserProfileChangeRequest profileChangeRequest = new UserProfileChangeRequest.Builder()
+                    .setDisplayName("Israel MEKOMOU")
+                    .setPhotoUri(Uri.parse("https://cdn.pixabay.com/photo/2015/09/18/11/46/man-945482_960_720.jpg"))
+                    .build();
+            user.updateProfile(profileChangeRequest).addOnCompleteListener(new OnCompleteListener<Void>() {
+                @Override
+                public void onComplete(@NonNull Task<Void> task) {
+                    if (task.isSuccessful()){
+                        Log.e(TAG, "onComplete: user profile updated");
+                    }
+                }
+            });
+        }
+    }
 
     @Override
     protected void onResume() {
@@ -77,6 +112,9 @@ public class SignedInActivity extends AppCompatActivity {
         switch (item.getItemId()){
             case R.id.optionSignOut:
                 signOut();
+                return true;
+            case R.id.optionAccountSettings:
+                startActivity(new Intent(this, SettingsActivity.class));
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
