@@ -16,10 +16,13 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.FirebaseDatabase;
+import com.israel.tabian.models.User;
 
 
 public class RegisterActivity extends AppCompatActivity {
@@ -55,8 +58,11 @@ public class RegisterActivity extends AppCompatActivity {
 
                     //check if user has a company email address
                     if(isValidDomain(mEmail.getText().toString())){
+
                         //check if passwords match
                         if(doStringsMatch(mPassword.getText().toString(), mConfirmPassword.getText().toString())){
+
+                            //Initiate registration task
                             registerNewEmail(mEmail.getText().toString(), mPassword.getText().toString());
                         }else{
                             Toast.makeText(RegisterActivity.this, "Passwords do not Match", Toast.LENGTH_SHORT).show();
@@ -75,40 +81,90 @@ public class RegisterActivity extends AppCompatActivity {
 
     }
 
-    private void sendVerificationEmail(){
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) return;
-        user.sendEmailVerification().addOnCompleteListener(new OnCompleteListener<Void>() {
-            @Override
-            public void onComplete(@NonNull Task<Void> task) {
-                if (task.isSuccessful()){
-                    Toast.makeText(RegisterActivity.this, "sent Verification Email", Toast.LENGTH_SHORT).show();
-                }else {
-                    Toast.makeText(RegisterActivity.this, "Couldn't send Verification Email", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
-    }
 
-    private void registerNewEmail(String email, String password){
+    /**
+     * Register a new email and password to Firebase Authentication
+     * @param email
+     * @param password
+     */
+    public void registerNewEmail(final String email, String password){
+
         showDialog();
-        FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password).addOnCompleteListener(
-                new OnCompleteListener<AuthResult>() {
+
+        FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password)
+                .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
                     @Override
                     public void onComplete(@NonNull Task<AuthResult> task) {
-                        Log.d(TAG, "onComplete: " + task.isSuccessful());
+                        Log.d(TAG, "createUserWithEmail:onComplete:" + task.isSuccessful());
+
                         if (task.isSuccessful()){
+                            Log.d(TAG, "onComplete: AuthState: " + FirebaseAuth.getInstance().getCurrentUser().getUid());
+
+                            //send email verificaiton
                             sendVerificationEmail();
-                            FirebaseAuth.getInstance().signOut();
-                        }else {
-                            Toast.makeText(RegisterActivity.this, "Unable to Register", Toast.LENGTH_SHORT).show();
+
+                            //insert some default data
+                            User user = new User();
+                            user.setName(email.substring(0, email.indexOf("@")));
+                            user.setPhone("1");
+                            user.setProfile_image("");
+                            user.setSecurity_level("1");
+                            user.setUser_id(FirebaseAuth.getInstance().getCurrentUser().getUid());
+                            FirebaseDatabase.getInstance().getReference()
+                                    .child(getString(R.string.dbnode_users))
+                                    .child(FirebaseAuth.getInstance().getCurrentUser().getUid())
+                                    .setValue(user)
+                                    .addOnCompleteListener(new OnCompleteListener<Void>() {
+                                        @Override
+                                        public void onComplete(@NonNull Task<Void> task) {
+                                            FirebaseAuth.getInstance().signOut();
+
+                                            //redirect the user to the login screen
+                                            redirectLoginScreen();
+                                        }
+                                    }).addOnFailureListener(new OnFailureListener() {
+                                @Override
+                                public void onFailure(@NonNull Exception e) {
+                                    Toast.makeText(RegisterActivity.this, "something went wrong.", Toast.LENGTH_SHORT).show();
+                                    FirebaseAuth.getInstance().signOut();
+
+                                    //redirect the user to the login screen
+                                    redirectLoginScreen();
+                                }
+                            });
+
+                        }
+                        if (!task.isSuccessful()) {
+                            Toast.makeText(RegisterActivity.this, "Unable to Register",
+                                    Toast.LENGTH_SHORT).show();
                         }
                         hideDialog();
                     }
-                }
-        );
+                });
     }
 
+    /**
+     * sends an email verification link to the user
+     */
+    private void sendVerificationEmail() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+
+        if (user != null) {
+            user.sendEmailVerification()
+                    .addOnCompleteListener(new OnCompleteListener<Void>() {
+                        @Override
+                        public void onComplete(@NonNull Task<Void> task) {
+                            if (task.isSuccessful()) {
+                                Toast.makeText(RegisterActivity.this, "Sent Verification Email", Toast.LENGTH_SHORT).show();
+                            }
+                            else{
+                                Toast.makeText(RegisterActivity.this, "Couldn't Verification Send Email", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
+        }
+
+    }
 
     /**
      * Returns True if the user's email contains '@tabian.ca'
